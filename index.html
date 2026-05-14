@@ -614,7 +614,7 @@ input,select,textarea,button{font-family:inherit}
       </div>
 
       <div style="margin-top:8px">
-        <button class="btn btn-secondary" style="margin-bottom:8px;width:100%" onclick="openGasConfig()">⚙ Conectar Google Sheets</button>
+        <button onclick="syncReload()" title="Recargar datos" style="background:none;border:none;cursor:pointer;color:var(--gold);font-size:18px;padding:6px 10px;border-radius:8px;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1">⟳</button>
 <button class="btn btn-danger" onclick="if(confirm('¿Cerrar sesión?'))logout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Cerrar sesión
@@ -774,44 +774,53 @@ const DEFAULT_INV=[
   {id:8,sku:'D6',name:'Balín Diamantado 6mm',category:'Balines Diamantados',stock:5,minStock:3,avgCost:73500,salePrice:99000},
 ];
 let S={users:null,session:null,ventas:null,movs:null,inv:null,clientes:null,cotNum:null,facNum:null,currentPage:'dashboard',facType:'venta',tipoMov:'Gasto'};
-const GAS_URL_KEY='dv_gas_url';
-function getGasUrl(){return localStorage.getItem(GAS_URL_KEY)||'';}
+
+/* ── Google Sheets Sync ── */
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbx8BAmnv_IlBJTbRXKGF0Y6r_NR0LiSFmWErJ6N57tag4auG4hSTxcwBeU2wJHUjAc7/exec';
 function ld(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
-function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}var url=getGasUrl();if(url)syncToGAS(k,v);}
-function syncToGAS(key,value){var url=getGasUrl();if(!url)return;fetch(url,{method:'POST',body:JSON.stringify({action:'sync',key:key,value:value})}).catch(function(){});}
+function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}syncToGAS(k,v);}
+function syncToGAS(key,value){fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'sync',key:key,value:value})}).catch(function(){});}
 async function loadAll(){
-  var url=getGasUrl();
-  if(url){try{showSyncBadge('syncing');
-    var resp=await fetch(url+'?action=getAll');
-    var json=await resp.json();
-    if(json.ok){var d=json.data;
-      if(d.users)sv(KEYS.users,d.users);
-      if(d.ventas)sv(KEYS.ventas,d.ventas);
-      if(d.movs)sv(KEYS.movs,d.movs);
-      if(d.inv)sv(KEYS.inv,d.inv);
-      if(d.clientes)sv(KEYS.clientes,d.clientes);
-      if(d.cotNum!=null)sv(KEYS.cotNum,d.cotNum);
-      if(d.facNum!=null)sv(KEYS.facNum,d.facNum);
+  try {
+    showSyncBadge('syncing');
+    var resp = await fetch(GAS_URL+'?action=getAll&t='+Date.now());
+    var json = await resp.json();
+    if(json.ok){
+      var d = json.data;
+      if(d.users    && d.users.length)    { localStorage.setItem(KEYS.users,    JSON.stringify(d.users));    }
+      if(d.ventas   && d.ventas.length)   { localStorage.setItem(KEYS.ventas,   JSON.stringify(d.ventas));   }
+      if(d.movs     && d.movs.length)     { localStorage.setItem(KEYS.movs,     JSON.stringify(d.movs));     }
+      if(d.inv      && d.inv.length)      { localStorage.setItem(KEYS.inv,      JSON.stringify(d.inv));      }
+      if(d.clientes && d.clientes.length) { localStorage.setItem(KEYS.clientes, JSON.stringify(d.clientes)); }
+      if(d.cotNum   != null)              { localStorage.setItem(KEYS.cotNum,   JSON.stringify(d.cotNum));   }
+      if(d.facNum   != null)              { localStorage.setItem(KEYS.facNum,   JSON.stringify(d.facNum));   }
       showSyncBadge('ok');
-    }
-  }catch(e){showSyncBadge('error');}}
-  S.users=ld(KEYS.users,DEFAULT_USERS);
-  S.session=ld(KEYS.session,null);
-  S.ventas=ld(KEYS.ventas,[]);
-  S.movs=ld(KEYS.movs,[]);
-  S.inv=ld(KEYS.inv,DEFAULT_INV);
-  S.clientes=ld(KEYS.clientes,[]);
-  S.cotNum=ld(KEYS.cotNum,1);
-  S.facNum=ld(KEYS.facNum,1);
+    } else { showSyncBadge('error'); }
+  } catch(e) { showSyncBadge('error'); }
+  S.users    = ld(KEYS.users,    DEFAULT_USERS);
+  S.session  = ld(KEYS.session,  null);
+  S.ventas   = ld(KEYS.ventas,   []);
+  S.movs     = ld(KEYS.movs,     []);
+  S.inv      = ld(KEYS.inv,      DEFAULT_INV);
+  S.clientes = ld(KEYS.clientes, []);
+  S.cotNum   = ld(KEYS.cotNum,   1);
+  S.facNum   = ld(KEYS.facNum,   1);
 }
 function showSyncBadge(state){
-  var b=document.getElementById('__sync_badge');
-  if(!b){b=document.createElement('div');b.id='__sync_badge';
-  b.style.cssText='position:fixed;bottom:72px;right:16px;z-index:9999;padding:4px 10px;border-radius:20px;font-size:11px;font-family:monospace;font-weight:600;transition:all .4s;pointer-events:none';
-  document.body.appendChild(b);}
-  var st={syncing:['\u29d0 Syncing...','#E2925C'],ok:['\u2713 Synced','#4CAF7A'],error:['\u2717 Sin conexi\u00f3n','#E25C5C']};
-  var s=st[state]||st.ok;b.textContent=s[0];b.style.color=s[1];b.style.border='1px solid '+s[1];b.style.background='#111';b.style.opacity='1';
-  if(state==='ok')setTimeout(function(){b.style.opacity='0';},2000);
+  var b = document.getElementById('__sync_badge');
+  if(!b){ b=document.createElement('div'); b.id='__sync_badge';
+    b.style.cssText='position:fixed;bottom:68px;right:12px;z-index:9999;padding:3px 10px;border-radius:20px;font-size:11px;font-family:monospace;font-weight:600;pointer-events:none;transition:opacity .4s';
+    document.body.appendChild(b); }
+  var cfg={syncing:['⟳ Syncing','#E2925C'],ok:['✓ Synced','#4CAF7A'],error:['✗ Sin conexión','#E25C5C']};
+  var c=cfg[state]||cfg.ok;
+  b.textContent=c[0]; b.style.color=c[1]; b.style.border='1px solid '+c[1]; b.style.background='#111'; b.style.opacity='1';
+  if(state==='ok') setTimeout(function(){ b.style.opacity='0'; }, 2500);
+}
+async function syncReload(){
+  var sess = S.session;
+  await loadAll();
+  if(sess){ S.session=sess; sv(KEYS.session,sess); showApp(); }
+  showSyncBadge('ok');
 }
 const cop=n=>'$'+Math.round(n).toLocaleString('es-CO');
 const copS=n=>n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1000?'$'+Math.round(n/1000)+'K':'$'+Math.round(n);
@@ -1170,41 +1179,7 @@ function delVenta(id){if(!confirm('¿Eliminar?'))return;const v=S.ventas.find(x=
 
 function dlPDF(id){
   const v=S.ventas.find(x=>x.id===id);if(!v)return;
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${v.docId} · DOREVIA</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#EAEAE6;font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px}@media print{body{padding:0;background:#EAEAE6}.sheet{box-shadow:none!important;border-radius:0!important;max-width:none!important;width:100%!important}}</style></head><body><div class="sheet" style="background:#EAEAE6;width:100%;max-width:600px;border-radius:8px;overflow:hidden">${buildFacHTML(v)}</div></div>
-
-<div id="gas-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#18181C;border:1px solid rgba(201,168,76,0.4);border-radius:14px;padding:28px;max-width:500px;width:100%">
-    <div style="font-size:20px;color:#F2C96A;margin-bottom:10px;font-weight:600">Conectar Google Sheets</div>
-    <p style="color:#A89F8C;font-size:13px;margin-bottom:16px;line-height:1.6">Pega la URL del Web App de tu Apps Script para sincronizar datos.</p>
-    <input id="gas-url-input" type="text" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;box-sizing:border-box;margin-bottom:16px;background:#1E1E24;border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:#F0EDE4;font-size:13px;padding:10px 12px;outline:none">
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button id="gas-cancel-btn" style="padding:9px 18px;background:#1E1E24;border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:#A89F8C;cursor:pointer;font-size:13px">Cancelar</button>
-      <button id="gas-save-btn" style="padding:9px 18px;background:#C9A84C;border:none;border-radius:8px;color:#0A0A0B;font-weight:600;cursor:pointer;font-size:13px">Guardar y Conectar</button>
-    </div>
-  </div>
-</div>
-<script>
-function openGasConfig(){
-  var m=document.getElementById('gas-modal');
-  var inp=document.getElementById('gas-url-input');
-  if(inp) inp.value=localStorage.getItem('dv_gas_url')||'';
-  if(m){ m.style.display='flex'; }
-}
-function saveGasUrl(){
-  var url=document.getElementById('gas-url-input').value.trim();
-  if(!url||!url.includes('script.google.com')){ showToast('URL inválida'); return; }
-  localStorage.setItem('dv_gas_url',url);
-  document.getElementById('gas-modal').style.display='none';
-  loadAll().then(function(){ S.session ? showApp() : showLogin(); });
-}
-document.addEventListener('DOMContentLoaded',function(){
-  var cb=document.getElementById('gas-cancel-btn');
-  var sb=document.getElementById('gas-save-btn');
-  if(cb) cb.addEventListener('click',function(){ document.getElementById('gas-modal').style.display='none'; });
-  if(sb) sb.addEventListener('click',saveGasUrl);
-});
-</script>
-</body></html>`;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${v.docId} · DOREVIA</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#EAEAE6;font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px}@media print{body{padding:0;background:#EAEAE6}.sheet{box-shadow:none!important;border-radius:0!important;max-width:none!important;width:100%!important}}</style></head><body><div class="sheet" style="background:#EAEAE6;width:100%;max-width:600px;border-radius:8px;overflow:hidden">${buildFacHTML(v)}</div></body></html>`;
   const blob=new Blob([html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${v.docId}.html`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);showToast('Descargando '+v.docId);
 }
 
@@ -1457,13 +1432,12 @@ function exportInventario(){
 }
 
 /* INIT */
-function init(){
-  loadAll();
+async function init(){
+  await loadAll();
   const cj=document.getElementById('cj-fecha');if(cj)cj.value=today();
   if(S.session){showApp()}else{showLogin()}
 }
 init();
-
 </script>
 </body>
 </html>
