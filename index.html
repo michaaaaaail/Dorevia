@@ -340,15 +340,8 @@ input,select,textarea,button{font-family:inherit}
 
     <!-- ═══ DASHBOARD ═══ -->
     <div class="page active" id="page-dashboard">
-      <div<div id="kpi-grid" class="kpi-grid"></div>
       <div id="dash-alerts"></div>
-       id="dash-alerts"></div>
-      <div class="kpi-grid" 
-        <div class="kpi-sub">Costo total del stock</div>
-      </div>
-        <div class="kpi-sub">Si vendes todo al precio actual</div>
-      </div>
-    id="kpi-grid"></div>
+      <div class="kpi-grid" id="kpi-grid"></div>
       <div class="card">
         <div class="card-header">
           <div class="card-title">
@@ -617,13 +610,12 @@ input,select,textarea,button{font-family:inherit}
             <select id="nu-role"><option value="vendedor">Vendedor</option><option value="admin">Admin</option></select>
           </div>
         </div>
-        <button class="btn btn-primary" style="margin-bottom:0" onclick="addUser()">Crear usuario</button>
+        <button onclick="syncReload()" title="Sincronizar" style="background:none;border:1px solid rgba(201,168,76,0.3);cursor:pointer;color:#C9A84C;font-size:18px;padding:4px 10px;border-radius:8px;margin-right:6px">⟳</button>
+    <button class="btn btn-primary" style="margin-bottom:0" onclick="addUser()">Crear usuario</button>
       </div>
 
       <div style="margin-top:8px">
-        <button onclick="syncReload()" title="Sincronizar datos" style="background:none;border:1px solid rgba(201,168,76,0.3);cursor:pointer;color:#C9A84C;font-size:18px;padding:4px 10px;border-radius:8px;line-height:1;margin-right:6px">⟳</button>
-<button onclick="syncReload()" title="Recargar datos" style="background:none;border:none;cursor:pointer;color:var(--gold);font-size:18px;padding:6px 10px;border-radius:8px;transition:opacity .2s" onmouseover="this.style.opacity=.7" onmouseout="this.style.opacity=1">⟳</button>
-<button class="btn btn-danger" onclick="if(confirm('¿Cerrar sesión?'))logout()">
+        <button class="btn btn-danger" onclick="if(confirm('¿Cerrar sesión?'))logout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Cerrar sesión
         </button>
@@ -783,52 +775,37 @@ const DEFAULT_INV=[
 ];
 let S={users:null,session:null,ventas:null,movs:null,inv:null,clientes:null,cotNum:null,facNum:null,currentPage:'dashboard',facType:'venta',tipoMov:'Gasto'};
 
-/* ── Google Sheets Sync ── */
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbx8BAmnv_IlBJTbRXKGF0Y6r_NR0LiSFmWErJ6N57tag4auG4hSTxcwBeU2wJHUjAc7/exec';
+/* ── Google Sheets sync ── */
+var GAS_URL='https://script.google.com/macros/s/AKfycbx8BAmnv_IlBJTbRXKGF0Y6r_NR0LiSFmWErJ6N57tag4auG4hSTxcwBeU2wJHUjAc7/exec';
 function ld(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}syncToGAS(k,v);}
-function syncToGAS(key,value){fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'sync',key:key,value:value})}).catch(function(){});}
+function syncToGAS(k,v){fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'sync',key:k,value:v})}).catch(function(){});}
 async function loadAll(){
-  try {
-    showSyncBadge('syncing');
-    var resp = await fetch(GAS_URL+'?action=getAll&t='+Date.now());
-    var json = await resp.json();
-    if(json.ok){
-      var d = json.data;
-      if(d.users    && d.users.length)    { localStorage.setItem(KEYS.users,    JSON.stringify(d.users));    }
-      if(d.ventas   && d.ventas.length)   { localStorage.setItem(KEYS.ventas,   JSON.stringify(d.ventas));   }
-      if(d.movs     && d.movs.length)     { localStorage.setItem(KEYS.movs,     JSON.stringify(d.movs));     }
-      if(d.inv      && d.inv.length)      { localStorage.setItem(KEYS.inv,      JSON.stringify(d.inv));      }
-      if(d.clientes && d.clientes.length) { localStorage.setItem(KEYS.clientes, JSON.stringify(d.clientes)); }
-      if(d.cotNum   != null)              { localStorage.setItem(KEYS.cotNum,   JSON.stringify(d.cotNum));   }
-      if(d.facNum   != null)              { localStorage.setItem(KEYS.facNum,   JSON.stringify(d.facNum));   }
+  try{showSyncBadge('syncing');
+    var rr=await fetch(GAS_URL+'?action=getAll&t='+Date.now());
+    var jj=await rr.json();
+    if(jj.ok){var dd=jj.data;
+      ['users','ventas','movs','inv','clientes'].forEach(function(k){
+        if(dd[k]&&dd[k].length) localStorage.setItem(KEYS[k],JSON.stringify(dd[k]));
+      });
+      if(dd.cotNum!=null) localStorage.setItem(KEYS.cotNum,JSON.stringify(dd.cotNum));
+      if(dd.facNum!=null) localStorage.setItem(KEYS.facNum,JSON.stringify(dd.facNum));
       showSyncBadge('ok');
-    } else { showSyncBadge('error'); }
-  } catch(e) { showSyncBadge('error'); }
-  S.users    = ld(KEYS.users,    DEFAULT_USERS);
-  S.session  = ld(KEYS.session,  null);
-  S.ventas   = ld(KEYS.ventas,   []);
-  S.movs     = ld(KEYS.movs,     []);
-  S.inv      = ld(KEYS.inv,      DEFAULT_INV);
-  S.clientes = ld(KEYS.clientes, []);
-  S.cotNum   = ld(KEYS.cotNum,   1);
-  S.facNum   = ld(KEYS.facNum,   1);
+    } else showSyncBadge('error');
+  }catch(e){showSyncBadge('error');}
+  S.users=ld(KEYS.users,DEFAULT_USERS); S.session=ld(KEYS.session,null);
+  S.ventas=ld(KEYS.ventas,[]); S.movs=ld(KEYS.movs,[]); S.inv=ld(KEYS.inv,DEFAULT_INV);
+  S.clientes=ld(KEYS.clientes,[]); S.cotNum=ld(KEYS.cotNum,1); S.facNum=ld(KEYS.facNum,1);
 }
 function showSyncBadge(state){
-  var b = document.getElementById('__sync_badge');
-  if(!b){ b=document.createElement('div'); b.id='__sync_badge';
-    b.style.cssText='position:fixed;bottom:68px;right:12px;z-index:9999;padding:3px 10px;border-radius:20px;font-size:11px;font-family:monospace;font-weight:600;pointer-events:none;transition:opacity .4s';
-    document.body.appendChild(b); }
-  var cfg={syncing:['⟳ Syncing','#E2925C'],ok:['✓ Synced','#4CAF7A'],error:['✗ Sin conexión','#E25C5C']};
-  var c=cfg[state]||cfg.ok;
-  b.textContent=c[0]; b.style.color=c[1]; b.style.border='1px solid '+c[1]; b.style.background='#111'; b.style.opacity='1';
-  if(state==='ok') setTimeout(function(){ b.style.opacity='0'; }, 2500);
+  var b=document.getElementById('__sb');
+  if(!b){b=document.createElement('div');b.id='__sb';b.style.cssText='position:fixed;bottom:68px;right:12px;z-index:9999;padding:3px 10px;border-radius:20px;font-size:11px;font-family:monospace;font-weight:600;pointer-events:none;transition:opacity .4s';document.body.appendChild(b);}
+  var cfg={syncing:['⟳ Syncing','#E2925C'],ok:['✓ Synced','#4CAF7A'],error:['✗ Offline','#E25C5C']};
+  var c=cfg[state]||cfg.ok; b.textContent=c[0]; b.style.color=c[1]; b.style.border='1px solid '+c[1]; b.style.background='#111'; b.style.opacity='1';
+  if(state==='ok') setTimeout(function(){b.style.opacity='0';},2500);
 }
 async function syncReload(){
-  var sess = S.session;
-  await loadAll();
-  if(sess){ S.session=sess; sv(KEYS.session,sess); showApp(); }
-  showSyncBadge('ok');
+  var sess=S.session; await loadAll(); if(sess){S.session=sess;sv(KEYS.session,sess);showApp();}
 }
 const cop=n=>'$'+Math.round(n).toLocaleString('es-CO');
 const copS=n=>n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1000?'$'+Math.round(n/1000)+'K':'$'+Math.round(n);
@@ -931,46 +908,36 @@ function renderDash(){
   const svgC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5a3 3 0 0 0-5 2.1c0 2.6 5 4.4 5 4.4s-5 1.8-5 4.4"/><path d="M12 7v1M12 16v1"/></svg>';
   const svgG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>';
   const svgR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 2v20l3-2 2 2 3-2 3 2 2-2 3 2V2l-3 2-2-2-3 2-3-2-2 2z"/></svg>';
-  var invCost=S.inv.reduce(function(s,p){return s+(p.avgCost||0)*(p.stock||0);},0);
-  var invSaleVal=S.inv.reduce(function(s,p){return s+(p.salePrice||0)*(p.stock||0);},0);
-  var invProfit=invSaleVal-invCost;
-  document.getElementById('kpi-grid')&&(document.getElementById('kpi-grid').innerHTML=`
+  document.
+  var invCost=S.inv.reduce(function(s,p){return s+(p.avgCost||0)*(p.stock||0);},0);var invSaleVal=S.inv.reduce(function(s,p){return s+(p.salePrice||0)*(p.stock||0);},0);var invProfit=invSaleVal-invCost;
+  getElementById('kpi-grid').innerHTML=`
     <div class="kpi gold" onclick="kpiDrill('ventas')"><div class="kpi-icon">${svgT}</div><div class="kpi-label">Ventas mes</div><div class="kpi-value">${copS(totM)}</div><div class="kpi-note">${vm.length} facturas</div></div>
     <div class="kpi green" onclick="kpiDrill('ganancia')"><div class="kpi-icon">${svgC}</div><div class="kpi-label">Ganancia neta</div><div class="kpi-value">${copS(ganM)}</div><div class="kpi-note">ventas − costo</div></div>
     <div class="kpi red" onclick="kpiDrill('gastos')"><div class="kpi-icon">${svgG}</div><div class="kpi-label">Gastos mes</div><div class="kpi-value">${copS(gasM)}</div><div class="kpi-note">gastos + inv.</div></div>
     <div class="kpi blue" onclick="kpiDrill('acum')"><div class="kpi-icon">${svgR}</div><div class="kpi-label">Ventas acum.</div><div class="kpi-value">${copS(totA)}</div><div class="kpi-note">${S.ventas.filter(v=>v.tipo==='venta').length} total</div></div>
       <div class="kpi-card">
-        <div class="kpi-label">Valor en inventario</div>
-        <div class="kpi-value">${cop(invCost)}</div>
-        <div class="kpi-sub">Costo total del stock</div>
+        <div class="kpi-label">Valor inventario</div>
+        <div class="kpi-value" style="color:var(--gold)">${cop(invCost)}</div>
+        <div class="kpi-sub">Costo total en stock</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Ganancia estimada stock</div>
+        <div class="kpi-label">Ganancia estimada</div>
         <div class="kpi-value green">${cop(invProfit)}</div>
-        <div class="kpi-sub">Si vendes todo al precio actual</div>
-      </div>`);
+        <div class="kpi-sub">Si vendes todo al precio de venta</div>
+      </div>`;
   const alerts=[];
   if(porCobrar>0)alerts.push(`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--amber)"><strong>Por cobrar: ${cop(porCobrar)}</strong> — clientes con saldo pendiente</div>`);
   if(sinS>0)alerts.push(`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--red)"><strong>${sinS} producto${sinS>1?'s':''} sin stock</strong></div>`);
   else if(bajoS>0)alerts.push(`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--amber)"><strong>${bajoS} producto${bajoS>1?'s':''} con stock bajo</strong></div>`);
-  document.getElementById('dash-alerts')&&(document.getElementById('dash-alerts').innerHTML=alerts.join(''));
+  document.getElementById('dash-alerts').innerHTML=alerts.join('');
   const uds={};S.inv.forEach(p=>uds[p.sku]=0);
   vm.forEach(v=>v.items.forEach(i=>{if(uds[i.sku]!==undefined)uds[i.sku]+=i.qty}));
   const mx=Math.max(...Object.values(uds),1);
-  document.getElementById('dash-bars')&&(document.getElementById('dash-bars').innerHTML=S.inv.map(p=>`<div class="bar-row"><div class="bar-sku">${p.sku}</div><div class="bar-track"><div class="bar-fill ${p.sku[0]==='L'?'liso':'diam'}" style="width:${(uds[p.sku]/mx*100).toFixed(0)}%"></div></div><div class="bar-val">${uds[p.sku]}</div></div>`).join(''));
-  document.getElementById('dash-stock')&&(document.getElementById('dash-stock').innerHTML=S.inv.map(p=>{const[cl,lb]=p.stock===0?['tag-out','Sin stock']:p.stock<=p.minStock?['tag-low','Bajo']:['tag-ok','OK']);const qc=p.stock===0?'var(--red)':p.stock<=p.minStock?'var(--amber)':'var(--green)';return`<div class="stock-item"><span class="sku-tag">${p.sku}</span><span class="stock-name">${p.name}</span><span class="stock-qty" style="color:${qc}">${p.stock}</span><span class="status-tag ${cl}">${lb}</span></div>`}).join('');
+  document.getElementById('dash-bars').innerHTML=S.inv.map(p=>`<div class="bar-row"><div class="bar-sku">${p.sku}</div><div class="bar-track"><div class="bar-fill ${p.sku[0]==='L'?'liso':'diam'}" style="width:${(uds[p.sku]/mx*100).toFixed(0)}%"></div></div><div class="bar-val">${uds[p.sku]}</div></div>`).join('');
+  document.getElementById('dash-stock').innerHTML=S.inv.map(p=>{const[cl,lb]=p.stock===0?['tag-out','Sin stock']:p.stock<=p.minStock?['tag-low','Bajo']:['tag-ok','OK'];const qc=p.stock===0?'var(--red)':p.stock<=p.minStock?'var(--amber)':'var(--green)';return`<div class="stock-item"><span class="sku-tag">${p.sku}</span><span class="stock-name">${p.name}</span><span class="stock-qty" style="color:${qc}">${p.stock}</span><span class="status-tag ${cl}">${lb}</span></div>`}).join('');
   const rec=[...S.ventas].filter(v=>v.tipo==='venta').reverse().slice(0,6);
   const svgE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   document.getElementById('dash-recent').innerHTML=rec.length?rec.map(v=>`<tr><td style="font-family:var(--mono);font-size:10px;color:var(--tx2)">${v.docId}</td><td style="white-space:nowrap">${fmtS(v.fecha)}</td><td style="color:var(--tx0);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.cliente}</td><td style="font-family:var(--mono);color:var(--gold-light);font-weight:600;white-space:nowrap">${cop(v.total)}</td><td><span class="badge ${v.estado==='Pagado'?'badge-green':v.estado==='Pendiente'?'badge-red':'badge-amber'}">${v.estado}</span></td><td><button class="tbl-action" onclick="openDetail(${v.id})">${svgE}</button></td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx2);font-size:13px">Sin ventas registradas</td></tr>';
-
-  // Inventory value KPIs
-  var invCost = S.inv.reduce(function(sum,p){ return sum + (p.avgCost||0)*(p.stock||0); }, 0);
-  var invSaleVal = S.inv.reduce(function(sum,p){ return sum + (p.salePrice||0)*(p.stock||0); }, 0);
-  var invProfit = invSaleVal - invCost;
-  var elIC = document.getElementById('dash-inv-cost');
-  var elIP = document.getElementById('dash-inv-profit');
-  if(elIC) elIC.textContent = cop(invCost);
-  if(elIP) elIP.textContent = cop(invProfit);
 }
 
 function kpiDrill(t){goTo('historial');const sel=document.getElementById('hist-tipo');if(t==='gastos'){if(sel)sel.value='gastos'}else{if(sel)sel.value='ventas'}const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;fillMeses();const ms=document.getElementById('hist-mes');if(ms)ms.value=ym;renderHist()}
@@ -1071,15 +1038,13 @@ function renderInv(){
 }
 function addStock(idx){const qty=parseInt(document.getElementById(`inv-aq-${idx}`)?.value)||0,cost=parseInt(document.getElementById(`inv-ac-${idx}`)?.value)||0,p=S.inv[idx];if(!p||qty<=0){showToast('Ingresa cantidad');return}if(cost<=0){showToast('Ingresa el costo');return}updateAvgCost(p,qty,cost);sv(KEYS.inv,S.inv);showToast(`+${qty} uds ${p.sku} · Costo prom: ${cop(p.avgCost)}`);renderInv();if(S.currentPage==='facturacion')renderProdGrid()}
 function saveInv(){
-  S.inv.forEach(function(p,idx){
-    var s=document.getElementById('inv-s-'+idx);
-    var m=document.getElementById('inv-m-'+idx);
-    var c=document.getElementById('inv-c-'+idx);
-    var v=document.getElementById('inv-v-'+idx);
-    if(s) p.stock=parseInt(s.value)||0;
-    if(m) p.minStock=parseInt(m.value)||0;
-    if(c) p.avgCost=parseInt(c.value)||0;
-    if(v) p.salePrice=parseInt(v.value)||0;
+  S.inv.forEach(function(p,i){
+    var gs=document.getElementById('inv-s-'+i), gm=document.getElementById('inv-m-'+i),
+        gc=document.getElementById('inv-c-'+i), gv=document.getElementById('inv-v-'+i);
+    if(gs) p.stock=parseInt(gs.value)||0;
+    if(gm) p.minStock=parseInt(gm.value)||0;
+    if(gc) p.avgCost=parseInt(gc.value)||0;
+    if(gv) p.salePrice=parseInt(gv.value)||0;
   });
   sv(KEYS.inv, S.inv);
   renderInv();
