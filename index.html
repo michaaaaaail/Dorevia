@@ -413,19 +413,8 @@ input,select,textarea,button{font-family:inherit}
         <div class="field"><label>Teléfono</label><input type="tel" id="fac-tel" placeholder="Opcional" inputmode="tel"></div>
       </div>
 
-      <!-- Productos -->
-      <div class="products-section">
-        <div class="products-section-label"><span class="dot"></span>Balines Lisos</div>
-        <div class="baling-grid" id="fac-liso-grid"></div>
-      </div>
-      <div class="products-section">
-        <div class="products-section-label"><span class="dot blue"></span>Balines Diamantados</div>
-        <div class="baling-grid" id="fac-diam-grid"></div>
-      </div>
-      <div class="products-section" id="otros-section" style="display:none">
-        <div class="products-section-label">Otros productos</div>
-        <div class="baling-grid" id="fac-otros-grid" style="grid-template-columns:repeat(3,1fr)"></div>
-      </div>
+      <!-- Productos dinamico -->
+      <div id="fac-prod-sections"></div>
 
       <!-- Descuento y pago -->
       <div class="form-section">
@@ -559,7 +548,7 @@ input,select,textarea,button{font-family:inherit}
           <div class="inv-field"><label>Nombre</label><input type="text" id="np-name" placeholder="Nombre del producto" style="background:var(--bg5)"></div>
         </div>
         <div class="row-3" style="margin-top:8px">
-          <div class="inv-field"><label>Categoría</label><input type="text" id="np-cat" placeholder="Ej: Aretes" style="background:var(--bg5)"></div>
+          <div class="inv-field"><label>Categoría</label><select id="np-cat" style="background:var(--bg5)"></select></div>
           <div class="inv-field"><label>Costo</label><input type="number" id="np-cost" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
           <div class="inv-field"><label>Precio venta</label><input type="number" id="np-sale" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
         </div>
@@ -614,6 +603,7 @@ input,select,textarea,button{font-family:inherit}
     <button class="btn btn-primary" style="margin-bottom:0" onclick="addUser()">Crear usuario</button>
       </div>
 
+      <div class="card" style="margin-top:0"><div class="card-header"><div class="card-title">Categorias de productos</div></div><div id="cats-list" style="margin-bottom:10px"></div><div style="display:flex;gap:8px"><input type="text" id="new-cat-input" placeholder="Nueva categoria..." style="flex:1"><button class="btn btn-secondary btn-sm" onclick="addCategory()">+ Agregar</button></div></div>
       <div style="margin-top:8px">
         <button class="btn btn-danger" onclick="if(confirm('¿Cerrar sesión?'))logout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -761,7 +751,7 @@ input,select,textarea,button{font-family:inherit}
 /* ============================================================
    DOREVIA POS — Core Logic
    ============================================================ */
-const KEYS={users:'dv_users',session:'dv_session',ventas:'dv_ventas',movs:'dv_movs',inv:'dv_inv',clientes:'dv_clientes',cotNum:'dv_cotn',facNum:'dv_facn'};
+const KEYS={users:'dv_users',session:'dv_session',ventas:'dv_ventas',movs:'dv_movs',inv:'dv_inv',clientes:'dv_clientes',cotNum:'dv_cotn',facNum:'dv_facn',cats:'dv_cats'};
 const DEFAULT_USERS=[{id:1,name:'Michail',username:'michail',password:'dorevia1',role:'admin',color:'#C5972E'},{id:2,name:'José',username:'jose',password:'dorevia1',role:'admin',color:'#4A8FD4'}];
 const DEFAULT_INV=[
   {id:1,sku:'L3',name:'Balín Liso 3mm',category:'Balines Lisos',stock:5,minStock:3,avgCost:18500,salePrice:31000},
@@ -783,14 +773,14 @@ async function loadAll(){
     var jj=await rr.json();
     if(jj.ok){
       var dd=jj.data;
-      ['users','ventas','movs','inv','clientes'].forEach(function(k){if(dd[k]&&dd[k].length)localStorage.setItem(KEYS[k],JSON.stringify(dd[k]));});
+      ['users','ventas','movs','inv','clientes','cats'].forEach(function(k){if(dd[k]&&dd[k].length)localStorage.setItem(KEYS[k],JSON.stringify(dd[k]));});
       if(dd.cotNum!=null)localStorage.setItem(KEYS.cotNum,JSON.stringify(dd.cotNum));
       if(dd.facNum!=null)localStorage.setItem(KEYS.facNum,JSON.stringify(dd.facNum));
     }
   }catch(e){}
   S.users=ld(KEYS.users,DEFAULT_USERS);S.session=ld(KEYS.session,null);
   S.ventas=ld(KEYS.ventas,[]);S.movs=ld(KEYS.movs,[]);S.inv=ld(KEYS.inv,DEFAULT_INV);
-  S.clientes=ld(KEYS.clientes,[]);S.cotNum=ld(KEYS.cotNum,1);S.facNum=ld(KEYS.facNum,1);
+  S.clientes=ld(KEYS.clientes,[]);S.cotNum=ld(KEYS.cotNum,1);S.facNum=ld(KEYS.facNum,1);S.cats=ld(KEYS.cats,['Balines Lisos','Balines Diamantados']);
 }
 async function syncReload(){var sess=S.session;await loadAll();if(sess){S.session=sess;sv(KEYS.session,sess);showApp();}}
 const cop=n=>'$'+Math.round(n).toLocaleString('es-CO');
@@ -823,9 +813,9 @@ function goTo(id){
   S.currentPage=id;window.scrollTo(0,0);
   if(id==='dashboard')renderDash();
   if(id==='historial'){fillMeses();renderHist()}
-  if(id==='inventario')renderInv();
+  if(id==='inventario'){renderInv();renderCatOptions();}
   if(id==='contactos')renderContactos();
-  if(id==='usuarios')renderUsers();
+  if(id==='usuarios'){renderUsers();renderCats();}
   if(id==='exportar')renderExportSummary();
   if(id==='facturacion')initFac();
 }
@@ -927,13 +917,29 @@ function initFac(){
   renderProdGrid();calcFacTotals();setupAC();
 }
 function renderProdGrid(){
-  const le=document.getElementById('fac-liso-grid'),de=document.getElementById('fac-diam-grid');
-  if(!le||!de)return;
-  const lisos=S.inv.filter(p=>p.category==='Balines Lisos'),diams=S.inv.filter(p=>p.category==='Balines Diamantados');
-  le.innerHTML=lisos.map(p=>`<div class="baling-cell liso"><div class="baling-label">${p.sku}</div><div class="baling-size">${p.sku.slice(1)}mm</div><input type="number" id="f-${p.sku}" value="0" min="0" inputmode="numeric" oninput="calcFacTotals()"><div class="baling-stock ${p.stock<=0?'danger':p.stock<=p.minStock?'warn':''}">${p.stock} en stock</div></div>`).join('');
-  de.innerHTML=diams.map(p=>`<div class="baling-cell diam"><div class="baling-label">${p.sku}</div><div class="baling-size">${p.sku.slice(1)}mm</div><input type="number" id="f-${p.sku}" value="0" min="0" inputmode="numeric" oninput="calcFacTotals()"><div class="baling-stock ${p.stock<=0?'danger':p.stock<=p.minStock?'warn':''}">${p.stock} en stock</div></div>`).join('');
-  const otros=S.inv.filter(p=>!p.category.startsWith('Balines')),oe=document.getElementById('fac-otros-grid');
-  if(oe){oe.innerHTML=otros.map(p=>`<div class="baling-cell" style="grid-column:span 1"><div class="baling-label" style="color:var(--tx1);font-size:10px">${p.sku}</div><div class="baling-size">${p.name.slice(0,10)}</div><input type="number" id="f-${p.sku}" value="0" min="0" inputmode="numeric" oninput="calcFacTotals()"><div class="baling-stock ${p.stock<=0?'danger':p.stock<=p.minStock?'warn':''}">${p.stock}</div></div>`).join('');oe.parentElement.style.display=otros.length?'':'none'}
+  var sec=document.getElementById('fac-prod-sections');
+  if(!sec)return;
+  var cats=S.cats||['Balines Lisos','Balines Diamantados'];
+  var html='';
+  cats.forEach(function(cat,ci){
+    var prods=S.inv.filter(function(p){return p.category===cat;});
+    if(!prods.length)return;
+    var dots=['','blue','green','orange'];
+    var cells=prods.map(function(p){
+      var sc=p.stock<=0?'danger':p.stock<=p.minStock?'warn':'';
+      return '<div class="baling-cell">'
+        +'<div class="baling-label">'+p.sku+'</div>'
+        +'<div class="baling-size">'+p.name.slice(0,9)+'</div>'
+        +'<input type="number" id="f-'+p.sku+'" value="0" min="0" inputmode="numeric" oninput="calcFacTotals()">'
+        +'<div class="baling-stock '+sc+'">'+p.stock+' uds</div>'
+        +'</div>';
+    }).join('');
+    html+='<div class="products-section">'
+      +'<div class="products-section-label"><span class="dot '+dots[ci%dots.length]+'"></span>'+cat+'</div>'
+      +'<div class="baling-grid">'+cells+'</div>'
+      +'</div>';
+  });
+  sec.innerHTML=html;
 }
 function calcFacTotals(){
   const items=buildItems(),dp=parseFloat(document.getElementById('fac-desc')?.value)||0;
@@ -998,7 +1004,7 @@ function renderInv(){
   w.innerHTML=S.inv.map((p,idx)=>{
     const mg=p.salePrice>0?((p.salePrice-p.avgCost)/p.salePrice*100).toFixed(1):'—';
     const[cl,lb]=p.stock===0?['tag-out','Sin stock']:p.stock<=p.minStock?['tag-low','Bajo']:['tag-ok','OK'];
-    return`<div class="inv-card"><div class="inv-card-header"><span class="sku-tag">${p.sku}</span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--tx0)">${p.name}</div><div style="font-size:11px;color:var(--tx2)">${p.category}</div></div><span class="status-tag ${cl}">${lb}</span><button class="tbl-action" onclick="delProd(${p.id})" style="color:var(--tx3)">${svgX}</button></div>
+    return`<div class="inv-card" draggable="true" ondragstart="invDragStart(event,${idx})" ondragover="event.preventDefault()" ondrop="invDrop(event,${idx})"><div class="inv-card-header"><span class="sku-tag">${p.sku}</span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--tx0)">${p.name}</div><div style="font-size:11px;color:var(--tx2)">${p.category}</div></div><span class="status-tag ${cl}">${lb}</span><button class="tbl-action" onclick="delProd(${p.id})" style="color:var(--tx3)">${svgX}</button></div>
     <div class="inv-fields">
       <div class="inv-field"><label>Stock actual</label><input type="number" id="inv-s-${idx}" value="${p.stock}" inputmode="numeric"></div>
       <div class="inv-field"><label>Stock mínimo</label><input type="number" id="inv-m-${idx}" value="${p.minStock}" inputmode="numeric"></div>
@@ -1016,7 +1022,7 @@ function renderInv(){
 function addStock(idx){const qty=parseInt(document.getElementById(`inv-aq-${idx}`)?.value)||0,cost=parseInt(document.getElementById(`inv-ac-${idx}`)?.value)||0,p=S.inv[idx];if(!p||qty<=0){showToast('Ingresa cantidad');return}if(cost<=0){showToast('Ingresa el costo');return}updateAvgCost(p,qty,cost);sv(KEYS.inv,S.inv);showToast(`+${qty} uds ${p.sku} · Costo prom: ${cop(p.avgCost)}`);renderInv();if(S.currentPage==='facturacion')renderProdGrid()}
 function saveInv(){S.inv.forEach(function(p,i){var gs=document.getElementById('inv-s-'+i),gm=document.getElementById('inv-m-'+i),gc=document.getElementById('inv-c-'+i),gv=document.getElementById('inv-v-'+i);var ps=parseInt(gs&&gs.value),pm=parseInt(gm&&gm.value),pc=parseInt(gc&&gc.value),pv=parseInt(gv&&gv.value);if(!isNaN(ps))p.stock=ps;if(!isNaN(pm))p.minStock=pm;if(!isNaN(pc))p.avgCost=pc;if(!isNaN(pv))p.salePrice=pv;});sv(KEYS.inv,S.inv);renderInv();renderDash();showToast('Guardado');}
 function delProd(id){if(!confirm('¿Eliminar producto?'))return;S.inv=S.inv.filter(p=>p.id!==id);sv(KEYS.inv,S.inv);renderInv();showToast('Eliminado')}
-function addNewProd(){const sku=document.getElementById('np-sku')?.value.trim().toUpperCase(),name=document.getElementById('np-name')?.value.trim();if(!sku||!name){showToast('SKU y nombre requeridos');return}if(S.inv.find(p=>p.sku===sku)){showToast('SKU ya existe');return}S.inv.push({id:Date.now(),sku,name,category:document.getElementById('np-cat')?.value.trim()||'Otros',stock:parseInt(document.getElementById('np-stock')?.value)||0,minStock:3,avgCost:parseInt(document.getElementById('np-cost')?.value)||0,salePrice:parseInt(document.getElementById('np-sale')?.value)||0});sv(KEYS.inv,S.inv);['np-sku','np-name','np-cat','np-cost','np-sale','np-stock'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});showToast(`Producto ${sku} agregado`);renderInv()}
+function addNewProd(){const sku=document.getElementById('np-sku')?.value.trim().toUpperCase(),name=document.getElementById('np-name')?.value.trim();if(!sku||!name){showToast('SKU y nombre requeridos');return}if(S.inv.find(p=>p.sku===sku)){showToast('SKU ya existe');return}S.inv.push({id:Date.now(),sku,name,category:document.getElementById('np-cat')?.value.trim()||'Otros',stock:parseInt(document.getElementById('np-stock')?.value)||0,minStock:3,avgCost:parseInt(document.getElementById('np-cost')?.value)||0,salePrice:parseInt(document.getElementById('np-sale')?.value)||0});sv(KEYS.inv,S.inv);['np-sku','np-name','np-cat','np-cost','np-sale','np-stock'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});showToast(`Producto ${sku} agregado`);renderInv();renderCatOptions();if(S.currentPage==='facturacion')renderProdGrid();}
 
 /* USUARIOS */
 function renderUsers(){const w=document.getElementById('users-list');if(!w)return;const svgL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';w.innerHTML=S.users.map(u=>`<div class="user-row"><div class="user-avatar" style="background:${u.color}22;color:${u.color}">${u.name.slice(0,2).toUpperCase()}</div><div class="user-info"><div class="name">${u.name} <span class="badge ${u.role==='admin'?'badge-gold':'badge-blue'}" style="font-size:9px;padding:1px 6px">${u.role}</span></div><div class="role">@${u.username}</div></div>${curUser().role==='admin'&&u.id!==curUser().id?`<button class="tbl-action" onclick="resetPw(${u.id})">${svgL}</button>`:''}</div>`).join('')}
@@ -1412,6 +1418,82 @@ async function init(){
   if(S.session){showApp()}else{showLogin()}
 }
 init();
+
+var _dragIdx=null;
+function invDragStart(e,idx){_dragIdx=idx;e.dataTransfer.effectAllowed='move';}
+function invDrop(e,toIdx){
+  e.preventDefault();
+  if(_dragIdx===null||_dragIdx===toIdx){_dragIdx=null;return;}
+  var moved=S.inv.splice(_dragIdx,1)[0];
+  S.inv.splice(toIdx,0,moved);
+  _dragIdx=null;
+  sv(KEYS.inv,S.inv);
+  renderInv();
+  renderCatOptions();
+  if(S.currentPage==='facturacion')renderProdGrid();
+}
+function renderCatOptions(){
+  var sel=document.getElementById('np-cat');
+  if(!sel)return;
+  var cats=S.cats||['Balines Lisos','Balines Diamantados'];
+  var cur=sel.value;
+  var html='';
+  for(var i=0;i<cats.length;i++){
+    html+='<option value="'+cats[i]+'">'+cats[i]+'</option>';
+  }
+  html+='<option value="__new__">+ Nueva categoria...</option>';
+  sel.innerHTML=html;
+  sel.onchange=function(){
+    if(this.value!=='__new__')return;
+    var nc=prompt('Nombre de la nueva categoria:');
+    if(nc&&nc.trim()){
+      nc=nc.trim();
+      if(!S.cats)S.cats=[];
+      if(!S.cats.includes(nc)){S.cats.push(nc);sv(KEYS.cats,S.cats);}
+      renderCatOptions();renderCats();
+      var s=document.getElementById('np-cat');
+      if(s)s.value=nc;
+    } else {
+      var s=document.getElementById('np-cat');
+      if(s&&S.cats&&S.cats.length)s.value=S.cats[0];
+    }
+  };
+  if(cur&&cur!=='__new__'&&cats.includes(cur))sel.value=cur;
+}
+function addCategory(){
+  var inp=document.getElementById('new-cat-input');
+  var val=inp?inp.value.trim():'';
+  if(!val){showToast('Escribe una categoria');return;}
+  if(!S.cats)S.cats=['Balines Lisos','Balines Diamantados'];
+  if(S.cats.includes(val)){showToast('Ya existe');return;}
+  S.cats.push(val);
+  sv(KEYS.cats,S.cats);
+  if(inp)inp.value='';
+  renderCats();renderCatOptions();
+  showToast('Categoria agregada');
+}
+function delCategory(cat){
+  if(!confirm('Eliminar categoria?'))return;
+  S.cats=(S.cats||[]).filter(function(c){return c!==cat;});
+  sv(KEYS.cats,S.cats);
+  renderCats();renderCatOptions();
+  showToast('Categoria eliminada');
+}
+function renderCats(){
+  var w=document.getElementById('cats-list');
+  if(!w)return;
+  var cats=S.cats||[];
+  if(!cats.length){w.innerHTML='<div style="color:var(--tx3);font-size:13px;padding:4px 0">Sin categorias</div>';return;}
+  var html='';
+  for(var i=0;i<cats.length;i++){
+    var c=cats[i];
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--br)">'
+      +'<span style="font-size:13px;color:var(--tx1)">'+c+'</span>'
+      +'<button class="tbl-action" data-cat="'+i+'" onclick="delCategory(S.cats['+i+'])" style="color:var(--tx3);font-size:18px">&#x2715;</button>'
+      +'</div>';
+  }
+  w.innerHTML=html;
+}
 </script>
 </body>
 </html>
