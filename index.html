@@ -340,16 +340,11 @@ input,select,textarea,button{font-family:inherit}
 
     <!-- ═══ DASHBOARD ═══ -->
     <div class="page active" id="page-dashboard">
-      <div id="dash-alerts"></div>
+      <div<div id="kpi-grid" class="kpi-grid"></div>
+       id="dash-alerts"></div>
       <div class="kpi-grid" 
-      <div class="kpi-card" id="kpi-inv-cost">
-        <div class="kpi-label">Valor en inventario</div>
-        <div class="kpi-value" id="dash-inv-cost">$0</div>
         <div class="kpi-sub">Costo total del stock</div>
       </div>
-      <div class="kpi-card" id="kpi-inv-profit">
-        <div class="kpi-label">Ganancia estimada</div>
-        <div class="kpi-value green" id="dash-inv-profit">$0</div>
         <div class="kpi-sub">Si vendes todo al precio actual</div>
       </div>
     id="kpi-grid"></div>
@@ -935,11 +930,24 @@ function renderDash(){
   const svgC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5a3 3 0 0 0-5 2.1c0 2.6 5 4.4 5 4.4s-5 1.8-5 4.4"/><path d="M12 7v1M12 16v1"/></svg>';
   const svgG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>';
   const svgR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 2v20l3-2 2 2 3-2 3 2 2-2 3 2V2l-3 2-2-2-3 2-3-2-2 2z"/></svg>';
+  var invCost=S.inv.reduce(function(s,p){return s+(p.avgCost||0)*(p.stock||0);},0);
+  var invSaleVal=S.inv.reduce(function(s,p){return s+(p.salePrice||0)*(p.stock||0);},0);
+  var invProfit=invSaleVal-invCost;
   document.getElementById('kpi-grid').innerHTML=`
     <div class="kpi gold" onclick="kpiDrill('ventas')"><div class="kpi-icon">${svgT}</div><div class="kpi-label">Ventas mes</div><div class="kpi-value">${copS(totM)}</div><div class="kpi-note">${vm.length} facturas</div></div>
     <div class="kpi green" onclick="kpiDrill('ganancia')"><div class="kpi-icon">${svgC}</div><div class="kpi-label">Ganancia neta</div><div class="kpi-value">${copS(ganM)}</div><div class="kpi-note">ventas − costo</div></div>
     <div class="kpi red" onclick="kpiDrill('gastos')"><div class="kpi-icon">${svgG}</div><div class="kpi-label">Gastos mes</div><div class="kpi-value">${copS(gasM)}</div><div class="kpi-note">gastos + inv.</div></div>
-    <div class="kpi blue" onclick="kpiDrill('acum')"><div class="kpi-icon">${svgR}</div><div class="kpi-label">Ventas acum.</div><div class="kpi-value">${copS(totA)}</div><div class="kpi-note">${S.ventas.filter(v=>v.tipo==='venta').length} total</div></div>`;
+    <div class="kpi blue" onclick="kpiDrill('acum')"><div class="kpi-icon">${svgR}</div><div class="kpi-label">Ventas acum.</div><div class="kpi-value">${copS(totA)}</div><div class="kpi-note">${S.ventas.filter(v=>v.tipo==='venta').length} total</div></div>
+      <div class="kpi-card">
+        <div class="kpi-label">Valor en inventario</div>
+        <div class="kpi-value">${cop(invCost)}</div>
+        <div class="kpi-sub">Costo total del stock</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ganancia estimada stock</div>
+        <div class="kpi-value green">${cop(invProfit)}</div>
+        <div class="kpi-sub">Si vendes todo al precio actual</div>
+      </div>`;
   const alerts=[];
   if(porCobrar>0)alerts.push(`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--amber)"><strong>Por cobrar: ${cop(porCobrar)}</strong> — clientes con saldo pendiente</div>`);
   if(sinS>0)alerts.push(`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--red)"><strong>${sinS} producto${sinS>1?'s':''} sin stock</strong></div>`);
