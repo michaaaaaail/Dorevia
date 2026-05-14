@@ -439,11 +439,27 @@ input,select,textarea,button{font-family:inherit}
         <div class="field"><label>Nota (opcional)</label><input type="text" id="fac-nota" placeholder="Observación..."></div>
       </div>
 
+      <!-- Cargo extra -->
+      <div class="form-section" style="margin-bottom:8px">
+        <span class="form-section-label">Cargo adicional (opcional)</span>
+        <div class="row-2">
+          <div class="field"><label>Descripción</label><input type="text" id="fac-extra-desc" placeholder="Ej: Armada, Envío..." oninput="calcFacTotals()"></div>
+          <div class="field"><label>Monto</label><input type="number" id="fac-extra-monto" placeholder="0" min="0" inputmode="numeric" oninput="calcFacTotals()"></div>
+        </div>
+      </div>
+
       <!-- Totales -->
       <div class="totals-box">
         <div class="total-row"><span class="lbl">Subtotal</span><span class="val" id="fac-subtotal">$0</span></div>
         <div class="total-row disc"><span class="lbl">Descuento</span><span class="val" id="fac-descamt">−$0</span></div>
+        <div class="total-row" id="fac-extra-row" style="display:none"><span class="lbl" id="fac-extra-lbl">Cargo extra</span><span class="val" id="fac-extra-val">+$0</span></div>
+        <div class="total-row" id="fac-iva-row" style="display:none"><span class="lbl">IVA 19%</span><span class="val" id="fac-iva-val">$0</span></div>
         <hr class="total-divider">
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 0 8px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx2);cursor:pointer">
+            <input type="checkbox" id="fac-iva" onchange="calcFacTotals()" style="width:16px;height:16px;accent-color:var(--gold)"> Incluir IVA 19%
+          </label>
+        </div>
         <div class="total-row main"><span class="lbl">TOTAL</span><span class="val" id="fac-total">$0</span></div>
       </div>
 
@@ -547,10 +563,12 @@ input,select,textarea,button{font-family:inherit}
           <div class="inv-field"><label>SKU</label><input type="text" id="np-sku" placeholder="Ej: AR1" style="background:var(--bg5)"></div>
           <div class="inv-field"><label>Nombre</label><input type="text" id="np-name" placeholder="Nombre del producto" style="background:var(--bg5)"></div>
         </div>
-        <div class="row-3" style="margin-top:8px">
-          <div class="inv-field"><label>Categoría</label><select id="np-cat" style="background:var(--bg5)"></select></div>
-          <div class="inv-field"><label>Costo</label><input type="number" id="np-cost" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
-          <div class="inv-field"><label>Precio venta</label><input type="number" id="np-sale" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
+        <div style="margin-top:8px">
+          <div class="inv-field" style="width:100%;margin-bottom:8px"><label>Categoría</label><select id="np-cat" style="background:var(--bg5);width:100%"></select></div>
+          <div class="row-2">
+            <div class="inv-field"><label>Costo</label><input type="number" id="np-cost" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
+            <div class="inv-field"><label>Precio venta</label><input type="number" id="np-sale" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
+          </div>
         </div>
         <div class="inv-field" style="margin-top:8px"><label>Stock inicial</label><input type="number" id="np-stock" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
         <button class="btn btn-secondary" style="margin-top:10px;margin-bottom:0" onclick="addNewProd()">
@@ -836,7 +854,7 @@ function restoreStock(items){items.forEach(({sku,qty})=>{const p=getProd(sku);if
 
 /* VENTA BUILD */
 function buildItems(){const it=[];S.inv.forEach(p=>{const el=document.getElementById('f-'+p.sku);if(!el)return;const q=parseInt(el.value)||0;if(q>0)it.push({sku:p.sku,name:p.name,qty:q,unitPrice:p.salePrice,unitCost:p.avgCost,subtotal:q*p.salePrice,cost:q*p.avgCost})});return it}
-function calcTotals(items,dp){const sub=items.reduce((s,i)=>s+i.subtotal,0),tc=items.reduce((s,i)=>s+i.cost,0),da=sub*(dp/100),tot=sub-da;return{sub,da,tot,tc,gan:tot-tc}}
+function calcTotals(items,dp,extra,iva){const sub=items.reduce((s,i)=>s+i.subtotal,0),tc=items.reduce((s,i)=>s+i.cost,0),da=sub*(dp/100),base=sub-da+extra,ivaAmt=iva?Math.round(base*0.19):0,tot=base+ivaAmt;return{sub,da,tot,tc,extra,ivaAmt,gan:tot-tc}}
 
 function saveVenta(){
   const fecha=document.getElementById('fac-fecha').value;
@@ -844,7 +862,10 @@ function saveVenta(){
   const items=buildItems();
   if(!items.length){showToast('Agrega al menos un producto');return}
   const dp=parseFloat(document.getElementById('fac-desc').value)||0;
-  const {sub,da,tot,tc,gan}=calcTotals(items,dp);
+  const extraMonto=parseFloat(document.getElementById('fac-extra-monto')?.value)||0;
+  const extraDesc=document.getElementById('fac-extra-desc')?.value||'';
+  const iva=document.getElementById('fac-iva')?.checked||false;
+  const {sub,da,tot,tc,gan,ivaAmt,extra}=calcTotals(items,dp,extraMonto,iva);
   const pagoSel=document.getElementById('fac-pago').value;
   let estado='Pagado',abonado=tot,saldo=0,metodo=pagoSel;
   if(pagoSel==='Pendiente'){estado='Pendiente';abonado=0;saldo=tot;metodo='Pendiente'}
@@ -854,7 +875,7 @@ function saveVenta(){
   const docId=nDoc(tipo,docNum);
   const cli=document.getElementById('fac-cli').value.trim();
   const tel=document.getElementById('fac-tel').value.trim();
-  const venta={id:Date.now(),docId,docNum,tipo,fecha,cliente:cli||'Consumidor Final',telefono:tel,vendedor:curUser().name,items,subtotal:sub,discPct:dp,discAmt:da,total:tot,totalCost:tc,ganancia:gan,metodoPago:metodo,estado,abonado,saldo,abonos:abonado>0?[{fecha,monto:abonado,user:curUser().name}]:[],nota:document.getElementById('fac-nota').value.trim(),createdAt:new Date().toISOString(),createdBy:curUser().name};
+  const venta={id:Date.now(),docId,docNum,tipo,fecha,cliente:cli||'Consumidor Final',telefono:tel,vendedor:curUser().name,items,subtotal:sub,discPct:dp,discAmt:da,extra:extraMonto,extraDesc:extraDesc,ivaAmt:ivaAmt,iva:iva,total:tot,totalCost:tc,ganancia:gan,metodoPago:metodo,estado,abonado,saldo,abonos:abonado>0?[{fecha,monto:abonado,user:curUser().name}]:[],nota:document.getElementById('fac-nota').value.trim(),createdAt:new Date().toISOString(),createdBy:curUser().name};
   S.ventas.push(venta);
   if(tipo==='cotizacion'){S.cotNum++;sv(KEYS.cotNum,S.cotNum)}else{S.facNum++;sv(KEYS.facNum,S.facNum)}
   if(tipo==='venta')deductStock(items.map(i=>({sku:i.sku,qty:i.qty})));
@@ -942,12 +963,26 @@ function renderProdGrid(){
   sec.innerHTML=html;
 }
 function calcFacTotals(){
-  const items=buildItems(),dp=parseFloat(document.getElementById('fac-desc')?.value)||0;
-  const{sub,da,tot}=calcTotals(items,dp);
-  const se=document.getElementById('fac-subtotal'),dde=document.getElementById('fac-descamt'),te=document.getElementById('fac-total');
-  if(se)se.textContent=cop(sub);if(dde)dde.textContent='−'+cop(da);if(te)te.textContent=cop(tot);
-  const ps=document.getElementById('fac-pago')?.value,ar=document.getElementById('abono-row');
-  if(ar)ar.style.display=ps==='Abono'?'':'none';
+  var items=buildItems();
+  var dp=parseFloat(document.getElementById('fac-desc')&&document.getElementById('fac-desc').value)||0;
+  var extraMonto=parseFloat(document.getElementById('fac-extra-monto')&&document.getElementById('fac-extra-monto').value)||0;
+  var extraDesc=document.getElementById('fac-extra-desc')&&document.getElementById('fac-extra-desc').value||'';
+  var iva=document.getElementById('fac-iva')&&document.getElementById('fac-iva').checked;
+  var r=calcTotals(items,dp,extraMonto,iva);
+  var se=document.getElementById('fac-subtotal'),dde=document.getElementById('fac-descamt'),te=document.getElementById('fac-total');
+  if(se)se.textContent=cop(r.sub);
+  if(dde)dde.textContent='−'+cop(r.da);
+  if(te)te.textContent=cop(r.tot);
+  var er=document.getElementById('fac-extra-row'),el=document.getElementById('fac-extra-lbl'),ev=document.getElementById('fac-extra-val');
+  if(er)er.style.display=extraMonto>0?'':' none';
+  if(el&&extraDesc)el.textContent=extraDesc;
+  if(ev)ev.textContent='+'+cop(extraMonto);
+  var ir=document.getElementById('fac-iva-row'),iv=document.getElementById('fac-iva-val');
+  if(ir)ir.style.display=iva?'':' none';
+  if(iv)iv.textContent=cop(r.ivaAmt);
+  var ps=document.getElementById('fac-pago')&&document.getElementById('fac-pago').value;
+  var ar=document.getElementById('abono-row');
+  if(ar)ar.style.display=ps==='Abono'?'':' none';
 }
 function clearFac(){['fac-cli','fac-tel','fac-nota'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});['fac-pago'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='Efectivo'});const fd=document.getElementById('fac-desc');if(fd)fd.value='0';const ff=document.getElementById('fac-fecha');if(ff)ff.value=today();S.inv.forEach(p=>{const el=document.getElementById('f-'+p.sku);if(el)el.value=0});calcFacTotals();const ne=document.getElementById('fac-doc-num');if(ne)ne.textContent=nDoc(S.facType,S.facType==='venta'?S.facNum:S.cotNum)}
 function setFacType(t,btn){S.facType=t;document.querySelectorAll('#fac-type-toggle .type-pill').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const lb=document.getElementById('fac-submit-btn');if(lb)lb.querySelector('svg').nextSibling.textContent=' '+(t==='venta'?'Guardar Factura':'Guardar Cotización');const ne=document.getElementById('fac-doc-num');if(ne)ne.textContent=nDoc(t,t==='venta'?S.facNum:S.cotNum)}
