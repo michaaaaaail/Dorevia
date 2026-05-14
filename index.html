@@ -564,7 +564,7 @@ input,select,textarea,button{font-family:inherit}
           <div class="inv-field"><label>Precio venta</label><input type="number" id="np-sale" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
         </div>
         <div class="inv-field" style="margin-top:8px"><label>Stock inicial</label><input type="number" id="np-stock" placeholder="0" inputmode="numeric" style="background:var(--bg5)"></div>
-        <button class="btn btn-secondary" style="margin-top:10px;margin-bottom:0" onclick="addNewProduct()">
+        <button class="btn btn-secondary" style="margin-top:10px;margin-bottom:0" onclick="addNewProd()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Agregar al inventario
         </button>
@@ -1000,10 +1000,10 @@ function renderInv(){
     const[cl,lb]=p.stock===0?['tag-out','Sin stock']:p.stock<=p.minStock?['tag-low','Bajo']:['tag-ok','OK'];
     return`<div class="inv-card"><div class="inv-card-header"><span class="sku-tag">${p.sku}</span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--tx0)">${p.name}</div><div style="font-size:11px;color:var(--tx2)">${p.category}</div></div><span class="status-tag ${cl}">${lb}</span><button class="tbl-action" onclick="delProd(${p.id})" style="color:var(--tx3)">${svgX}</button></div>
     <div class="inv-fields">
-      <div class="inv-field"><label>Stock actual</label><input type="number" id="inv-s-${idx}" value="${p.stock}" min="0" inputmode="numeric"></div>
-      <div class="inv-field"><label>Stock mínimo</label><input type="number" id="inv-m-${idx}" value="${p.minStock}" min="0" inputmode="numeric"></div>
-      <div class="inv-field"><label>Costo prom.</label><input type="number" id="inv-c-${idx}" value="${p.avgCost}" min="0" inputmode="numeric"></div>
-      <div class="inv-field"><label>Precio venta</label><input type="number" id="inv-v-${idx}" value="${p.salePrice}" min="0" inputmode="numeric"></div>
+      <div class="inv-field"><label>Stock actual</label><input type="number" id="inv-s-${idx}" value="${p.stock}" inputmode="numeric"></div>
+      <div class="inv-field"><label>Stock mínimo</label><input type="number" id="inv-m-${idx}" value="${p.minStock}" inputmode="numeric"></div>
+      <div class="inv-field"><label>Costo prom.</label><input type="number" id="inv-c-${idx}" value="${p.avgCost}" inputmode="numeric"></div>
+      <div class="inv-field"><label>Precio venta</label><input type="number" id="inv-v-${idx}" value="${p.salePrice}" inputmode="numeric"></div>
     </div>
     <div class="cost-badge">Margen: <strong>${mg}%</strong> · Prom. costo: <strong>${cop(p.avgCost)}</strong></div>
     <div class="inv-add-row">
@@ -1014,7 +1014,7 @@ function renderInv(){
   }).join('');
 }
 function addStock(idx){const qty=parseInt(document.getElementById(`inv-aq-${idx}`)?.value)||0,cost=parseInt(document.getElementById(`inv-ac-${idx}`)?.value)||0,p=S.inv[idx];if(!p||qty<=0){showToast('Ingresa cantidad');return}if(cost<=0){showToast('Ingresa el costo');return}updateAvgCost(p,qty,cost);sv(KEYS.inv,S.inv);showToast(`+${qty} uds ${p.sku} · Costo prom: ${cop(p.avgCost)}`);renderInv();if(S.currentPage==='facturacion')renderProdGrid()}
-function saveInv(){S.inv.forEach(function(p,i){var gs=document.getElementById('inv-s-'+i),gm=document.getElementById('inv-m-'+i),gc=document.getElementById('inv-c-'+i),gv=document.getElementById('inv-v-'+i);if(gs)p.stock=parseInt(gs.value)||0;if(gm)p.minStock=parseInt(gm.value)||0;if(gc)p.avgCost=parseInt(gc.value)||0;if(gv)p.salePrice=parseInt(gv.value)||0;});sv(KEYS.inv,S.inv);renderInv();renderDash();showToast('Guardado');}
+function saveInv(){S.inv.forEach(function(p,i){var gs=document.getElementById('inv-s-'+i),gm=document.getElementById('inv-m-'+i),gc=document.getElementById('inv-c-'+i),gv=document.getElementById('inv-v-'+i);var ps=parseInt(gs&&gs.value),pm=parseInt(gm&&gm.value),pc=parseInt(gc&&gc.value),pv=parseInt(gv&&gv.value);if(!isNaN(ps))p.stock=ps;if(!isNaN(pm))p.minStock=pm;if(!isNaN(pc))p.avgCost=pc;if(!isNaN(pv))p.salePrice=pv;});sv(KEYS.inv,S.inv);renderInv();renderDash();showToast('Guardado');}
 function delProd(id){if(!confirm('¿Eliminar producto?'))return;S.inv=S.inv.filter(p=>p.id!==id);sv(KEYS.inv,S.inv);renderInv();showToast('Eliminado')}
 function addNewProd(){const sku=document.getElementById('np-sku')?.value.trim().toUpperCase(),name=document.getElementById('np-name')?.value.trim();if(!sku||!name){showToast('SKU y nombre requeridos');return}if(S.inv.find(p=>p.sku===sku)){showToast('SKU ya existe');return}S.inv.push({id:Date.now(),sku,name,category:document.getElementById('np-cat')?.value.trim()||'Otros',stock:parseInt(document.getElementById('np-stock')?.value)||0,minStock:3,avgCost:parseInt(document.getElementById('np-cost')?.value)||0,salePrice:parseInt(document.getElementById('np-sale')?.value)||0});sv(KEYS.inv,S.inv);['np-sku','np-name','np-cat','np-cost','np-sale','np-stock'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});showToast(`Producto ${sku} agregado`);renderInv()}
 
