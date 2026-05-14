@@ -610,7 +610,8 @@ input,select,textarea,button{font-family:inherit}
             <select id="nu-role"><option value="vendedor">Vendedor</option><option value="admin">Admin</option></select>
           </div>
         </div>
-        <button class="btn btn-primary" style="margin-bottom:0" onclick="addUser()">Crear usuario</button>
+        <button onclick="syncReload()" title="Sincronizar" style="background:none;border:1px solid rgba(201,168,76,0.3);cursor:pointer;color:#C9A84C;font-size:18px;padding:4px 10px;border-radius:8px;margin-right:6px">&#x21bb;</button>
+    <button class="btn btn-primary" style="margin-bottom:0" onclick="addUser()">Crear usuario</button>
       </div>
 
       <div style="margin-top:8px">
@@ -773,9 +774,25 @@ const DEFAULT_INV=[
   {id:8,sku:'D6',name:'Balín Diamantado 6mm',category:'Balines Diamantados',stock:5,minStock:3,avgCost:73500,salePrice:99000},
 ];
 let S={users:null,session:null,ventas:null,movs:null,inv:null,clientes:null,cotNum:null,facNum:null,currentPage:'dashboard',facType:'venta',tipoMov:'Gasto'};
-function ld(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}}
-function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
-function loadAll(){S.users=ld(KEYS.users,DEFAULT_USERS);S.session=ld(KEYS.session,null);S.ventas=ld(KEYS.ventas,[]);S.movs=ld(KEYS.movs,[]);S.inv=ld(KEYS.inv,DEFAULT_INV);S.clientes=ld(KEYS.clientes,[]);S.cotNum=ld(KEYS.cotNum,1);S.facNum=ld(KEYS.facNum,1)}
+var GAS_URL='https://script.google.com/macros/s/AKfycbx8BAmnv_IlBJTbRXKGF0Y6r_NR0LiSFmWErJ6N57tag4auG4hSTxcwBeU2wJHUjAc7/exec';
+function ld(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'sync',key:k,value:v})}).catch(function(){});}
+async function loadAll(){
+  try{
+    var rr=await fetch(GAS_URL+'?action=getAll&t='+Date.now());
+    var jj=await rr.json();
+    if(jj.ok){
+      var dd=jj.data;
+      ['users','ventas','movs','inv','clientes'].forEach(function(k){if(dd[k]&&dd[k].length)localStorage.setItem(KEYS[k],JSON.stringify(dd[k]));});
+      if(dd.cotNum!=null)localStorage.setItem(KEYS.cotNum,JSON.stringify(dd.cotNum));
+      if(dd.facNum!=null)localStorage.setItem(KEYS.facNum,JSON.stringify(dd.facNum));
+    }
+  }catch(e){}
+  S.users=ld(KEYS.users,DEFAULT_USERS);S.session=ld(KEYS.session,null);
+  S.ventas=ld(KEYS.ventas,[]);S.movs=ld(KEYS.movs,[]);S.inv=ld(KEYS.inv,DEFAULT_INV);
+  S.clientes=ld(KEYS.clientes,[]);S.cotNum=ld(KEYS.cotNum,1);S.facNum=ld(KEYS.facNum,1);
+}
+async function syncReload(){var sess=S.session;await loadAll();if(sess){S.session=sess;sv(KEYS.session,sess);showApp();}}
 const cop=n=>'$'+Math.round(n).toLocaleString('es-CO');
 const copS=n=>n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1000?'$'+Math.round(n/1000)+'K':'$'+Math.round(n);
 const today=()=>new Date().toISOString().slice(0,10);
@@ -877,11 +894,14 @@ function renderDash(){
   const svgC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5a3 3 0 0 0-5 2.1c0 2.6 5 4.4 5 4.4s-5 1.8-5 4.4"/><path d="M12 7v1M12 16v1"/></svg>';
   const svgG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>';
   const svgR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 2v20l3-2 2 2 3-2 3 2 2-2 3 2V2l-3 2-2-2-3 2-3-2-2 2z"/></svg>';
-  document.getElementById('kpi-grid').innerHTML=`
+  var _ic=S.inv.reduce(function(s,p){return s+(p.avgCost||0)*(p.stock||0);},0),_is=S.inv.reduce(function(s,p){return s+(p.salePrice||0)*(p.stock||0);},0),_ip=_is-_ic;
+    document.getElementById('kpi-grid').innerHTML=`
     <div class="kpi gold" onclick="kpiDrill('ventas')"><div class="kpi-icon">${svgT}</div><div class="kpi-label">Ventas mes</div><div class="kpi-value">${copS(totM)}</div><div class="kpi-note">${vm.length} facturas</div></div>
     <div class="kpi green" onclick="kpiDrill('ganancia')"><div class="kpi-icon">${svgC}</div><div class="kpi-label">Ganancia neta</div><div class="kpi-value">${copS(ganM)}</div><div class="kpi-note">ventas − costo</div></div>
     <div class="kpi red" onclick="kpiDrill('gastos')"><div class="kpi-icon">${svgG}</div><div class="kpi-label">Gastos mes</div><div class="kpi-value">${copS(gasM)}</div><div class="kpi-note">gastos + inv.</div></div>
     <div class="kpi blue" onclick="kpiDrill('acum')"><div class="kpi-icon">${svgR}</div><div class="kpi-label">Ventas acum.</div><div class="kpi-value">${copS(totA)}</div><div class="kpi-note">${S.ventas.filter(v=>v.tipo==='venta').length} total</div></div>`;
+  var _kg=document.getElementById('kpi-grid');
+  if(_kg) _kg.innerHTML+='<div class="kpi-card"><div class="kpi-label">Valor inventario</div><div class="kpi-value" style="color:var(--gold-light)">'+cop(_ic)+'</div><div class="kpi-sub">Costo total</div></div><div class="kpi-card"><div class="kpi-label">Ganancia estimada</div><div class="kpi-value green">'+cop(_ip)+'</div><div class="kpi-sub">A precios de venta</div></div>';
   const alerts=[];
   if(porCobrar>0)alerts.push(`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--amber)"><strong>Por cobrar: ${cop(porCobrar)}</strong> — clientes con saldo pendiente</div>`);
   if(sinS>0)alerts.push(`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--red)"><strong>${sinS} producto${sinS>1?'s':''} sin stock</strong></div>`);
@@ -994,7 +1014,7 @@ function renderInv(){
   }).join('');
 }
 function addStock(idx){const qty=parseInt(document.getElementById(`inv-aq-${idx}`)?.value)||0,cost=parseInt(document.getElementById(`inv-ac-${idx}`)?.value)||0,p=S.inv[idx];if(!p||qty<=0){showToast('Ingresa cantidad');return}if(cost<=0){showToast('Ingresa el costo');return}updateAvgCost(p,qty,cost);sv(KEYS.inv,S.inv);showToast(`+${qty} uds ${p.sku} · Costo prom: ${cop(p.avgCost)}`);renderInv();if(S.currentPage==='facturacion')renderProdGrid()}
-function saveInv(){S.inv.forEach((p,idx)=>{const s=parseInt(document.getElementById(`inv-s-${idx}`)?.value),m=parseInt(document.getElementById(`inv-m-${idx}`)?.value),c=parseInt(document.getElementById(`inv-c-${idx}`)?.value),v=parseInt(document.getElementById(`inv-v-${idx}`)?.value);if(!isNaN(s))p.stock=s;if(!isNaN(m))p.minStock=m;if(!isNaN(c))p.avgCost=c;if(!isNaN(v))p.salePrice=v});sv(KEYS.inv,S.inv);showToast('Inventario guardado');renderInv()}
+function saveInv(){S.inv.forEach(function(p,i){var gs=document.getElementById('inv-s-'+i),gm=document.getElementById('inv-m-'+i),gc=document.getElementById('inv-c-'+i),gv=document.getElementById('inv-v-'+i);if(gs)p.stock=parseInt(gs.value)||0;if(gm)p.minStock=parseInt(gm.value)||0;if(gc)p.avgCost=parseInt(gc.value)||0;if(gv)p.salePrice=parseInt(gv.value)||0;});sv(KEYS.inv,S.inv);renderInv();renderDash();showToast('Guardado');}
 function delProd(id){if(!confirm('¿Eliminar producto?'))return;S.inv=S.inv.filter(p=>p.id!==id);sv(KEYS.inv,S.inv);renderInv();showToast('Eliminado')}
 function addNewProd(){const sku=document.getElementById('np-sku')?.value.trim().toUpperCase(),name=document.getElementById('np-name')?.value.trim();if(!sku||!name){showToast('SKU y nombre requeridos');return}if(S.inv.find(p=>p.sku===sku)){showToast('SKU ya existe');return}S.inv.push({id:Date.now(),sku,name,category:document.getElementById('np-cat')?.value.trim()||'Otros',stock:parseInt(document.getElementById('np-stock')?.value)||0,minStock:3,avgCost:parseInt(document.getElementById('np-cost')?.value)||0,salePrice:parseInt(document.getElementById('np-sale')?.value)||0});sv(KEYS.inv,S.inv);['np-sku','np-name','np-cat','np-cost','np-sale','np-stock'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});showToast(`Producto ${sku} agregado`);renderInv()}
 
@@ -1386,8 +1406,8 @@ function exportInventario(){
 }
 
 /* INIT */
-function init(){
-  loadAll();
+async function init(){
+  await loadAll();
   const cj=document.getElementById('cj-fecha');if(cj)cj.value=today();
   if(S.session){showApp()}else{showLogin()}
 }
