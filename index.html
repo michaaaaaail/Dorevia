@@ -341,6 +341,7 @@ input,select,textarea,button{font-family:inherit}
     <!-- ═══ DASHBOARD ═══ -->
     <div class="page active" id="page-dashboard">
       <div<div id="kpi-grid" class="kpi-grid"></div>
+      <div id="dash-alerts"></div>
        id="dash-alerts"></div>
       <div class="kpi-grid" 
         <div class="kpi-sub">Costo total del stock</div>
@@ -933,7 +934,7 @@ function renderDash(){
   var invCost=S.inv.reduce(function(s,p){return s+(p.avgCost||0)*(p.stock||0);},0);
   var invSaleVal=S.inv.reduce(function(s,p){return s+(p.salePrice||0)*(p.stock||0);},0);
   var invProfit=invSaleVal-invCost;
-  document.getElementById('kpi-grid').innerHTML=`
+  document.getElementById('kpi-grid')&&(document.getElementById('kpi-grid').innerHTML=`
     <div class="kpi gold" onclick="kpiDrill('ventas')"><div class="kpi-icon">${svgT}</div><div class="kpi-label">Ventas mes</div><div class="kpi-value">${copS(totM)}</div><div class="kpi-note">${vm.length} facturas</div></div>
     <div class="kpi green" onclick="kpiDrill('ganancia')"><div class="kpi-icon">${svgC}</div><div class="kpi-label">Ganancia neta</div><div class="kpi-value">${copS(ganM)}</div><div class="kpi-note">ventas − costo</div></div>
     <div class="kpi red" onclick="kpiDrill('gastos')"><div class="kpi-icon">${svgG}</div><div class="kpi-label">Gastos mes</div><div class="kpi-value">${copS(gasM)}</div><div class="kpi-note">gastos + inv.</div></div>
@@ -947,17 +948,17 @@ function renderDash(){
         <div class="kpi-label">Ganancia estimada stock</div>
         <div class="kpi-value green">${cop(invProfit)}</div>
         <div class="kpi-sub">Si vendes todo al precio actual</div>
-      </div>`;
+      </div>`);
   const alerts=[];
   if(porCobrar>0)alerts.push(`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--amber)"><strong>Por cobrar: ${cop(porCobrar)}</strong> — clientes con saldo pendiente</div>`);
   if(sinS>0)alerts.push(`<div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--red)"><strong>${sinS} producto${sinS>1?'s':''} sin stock</strong></div>`);
   else if(bajoS>0)alerts.push(`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--amber)"><strong>${bajoS} producto${bajoS>1?'s':''} con stock bajo</strong></div>`);
-  document.getElementById('dash-alerts').innerHTML=alerts.join('');
+  document.getElementById('dash-alerts')&&(document.getElementById('dash-alerts').innerHTML=alerts.join(''));
   const uds={};S.inv.forEach(p=>uds[p.sku]=0);
   vm.forEach(v=>v.items.forEach(i=>{if(uds[i.sku]!==undefined)uds[i.sku]+=i.qty}));
   const mx=Math.max(...Object.values(uds),1);
-  document.getElementById('dash-bars').innerHTML=S.inv.map(p=>`<div class="bar-row"><div class="bar-sku">${p.sku}</div><div class="bar-track"><div class="bar-fill ${p.sku[0]==='L'?'liso':'diam'}" style="width:${(uds[p.sku]/mx*100).toFixed(0)}%"></div></div><div class="bar-val">${uds[p.sku]}</div></div>`).join('');
-  document.getElementById('dash-stock').innerHTML=S.inv.map(p=>{const[cl,lb]=p.stock===0?['tag-out','Sin stock']:p.stock<=p.minStock?['tag-low','Bajo']:['tag-ok','OK'];const qc=p.stock===0?'var(--red)':p.stock<=p.minStock?'var(--amber)':'var(--green)';return`<div class="stock-item"><span class="sku-tag">${p.sku}</span><span class="stock-name">${p.name}</span><span class="stock-qty" style="color:${qc}">${p.stock}</span><span class="status-tag ${cl}">${lb}</span></div>`}).join('');
+  document.getElementById('dash-bars')&&(document.getElementById('dash-bars').innerHTML=S.inv.map(p=>`<div class="bar-row"><div class="bar-sku">${p.sku}</div><div class="bar-track"><div class="bar-fill ${p.sku[0]==='L'?'liso':'diam'}" style="width:${(uds[p.sku]/mx*100).toFixed(0)}%"></div></div><div class="bar-val">${uds[p.sku]}</div></div>`).join(''));
+  document.getElementById('dash-stock')&&(document.getElementById('dash-stock').innerHTML=S.inv.map(p=>{const[cl,lb]=p.stock===0?['tag-out','Sin stock']:p.stock<=p.minStock?['tag-low','Bajo']:['tag-ok','OK']);const qc=p.stock===0?'var(--red)':p.stock<=p.minStock?'var(--amber)':'var(--green)';return`<div class="stock-item"><span class="sku-tag">${p.sku}</span><span class="stock-name">${p.name}</span><span class="stock-qty" style="color:${qc}">${p.stock}</span><span class="status-tag ${cl}">${lb}</span></div>`}).join('');
   const rec=[...S.ventas].filter(v=>v.tipo==='venta').reverse().slice(0,6);
   const svgE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   document.getElementById('dash-recent').innerHTML=rec.length?rec.map(v=>`<tr><td style="font-family:var(--mono);font-size:10px;color:var(--tx2)">${v.docId}</td><td style="white-space:nowrap">${fmtS(v.fecha)}</td><td style="color:var(--tx0);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.cliente}</td><td style="font-family:var(--mono);color:var(--gold-light);font-weight:600;white-space:nowrap">${cop(v.total)}</td><td><span class="badge ${v.estado==='Pagado'?'badge-green':v.estado==='Pendiente'?'badge-red':'badge-amber'}">${v.estado}</span></td><td><button class="tbl-action" onclick="openDetail(${v.id})">${svgE}</button></td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx2);font-size:13px">Sin ventas registradas</td></tr>';
