@@ -810,7 +810,7 @@ const mlbl=ym=>{const[y,m]=ym.split('-');return MN[parseInt(m)-1]+' '+y};
 const nDoc=(t,n)=>(t==='cotizacion'?'COT-':'FAC-')+String(n).padStart(4,'0');
 
 /* AUTH */
-function login(u,p){const usr=S.users.find(x=>x.username===u&&x.password===p);if(!usr)return false;S.session={id:usr.id,name:usr.name,username:usr.username,role:usr.role};sv(KEYS.session,S.session);return true}
+function login(u,p){if(!S.users)S.users=ld(KEYS.users,DEFAULT_USERS);const usr=S.users.find(x=>x.username===u&&x.password===p);if(!usr)return false;S.session={id:usr.id,name:usr.name,username:usr.username,role:usr.role};sv(KEYS.session,S.session);return true}
 function logout(){S.session=null;localStorage.removeItem(KEYS.session);showLogin()}
 function curUser(){return S.session}
 function handleLogin(){const u=document.getElementById('login-user').value.trim(),p=document.getElementById('login-pass').value;if(login(u,p))showApp();else{showToast('Usuario o contraseña incorrectos');document.getElementById('login-pass').value=''}}
