@@ -614,7 +614,7 @@ input,select,textarea,button{font-family:inherit}
       </div>
 
       <div style="margin-top:8px">
-        <button class="btn btn-secondary" style="margin-bottom:8px;width:100%" onclick="document.getElementById('gas-url-input').value=localStorage.getItem('dv_gas_url')||'';document.getElementById('gas-modal').style.display='flex'">&#9881; Conectar Google Sheets</button>
+        <button class="btn btn-secondary" style="margin-bottom:8px;width:100%" onclick="openGasConfig()">&#9881; Conectar Google Sheets</button>
 <button class="btn btn-danger" onclick="if(confirm('¿Cerrar sesión?'))logout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Cerrar sesión
@@ -1171,7 +1171,7 @@ function delVenta(id){if(!confirm('¿Eliminar?'))return;const v=S.ventas.find(x=
 function dlPDF(id){
   const v=S.ventas.find(x=>x.id===id);if(!v)return;
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${v.docId} · DOREVIA</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#EAEAE6;font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px}@media print{body{padding:0;background:#EAEAE6}.sheet{box-shadow:none!important;border-radius:0!important;max-width:none!important;width:100%!important}}</style></head><body><div class="sheet" style="background:#EAEAE6;width:100%;max-width:600px;border-radius:8px;overflow:hidden">${buildFacHTML(v)}</div>
-<div id="gas-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center"><div style="background:#18181C;border:1px solid rgba(201,168,76,.4);border-radius:14px;padding:28px 32px;max-width:520px;width:90%;margin:auto"><div style="font-family:serif;font-size:22px;color:#F2C96A;margin-bottom:12px">Conectar Google Sheets</div><p style="color:#A89F8C;font-size:13px;margin-bottom:16px">Pega la URL del Web App de tu Apps Script.</p><input id="gas-url-input" type="text" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;margin-bottom:16px;background:#1E1E24;border:1px solid rgba(201,168,76,.2);border-radius:8px;color:#F0EDE4;font-size:12px;padding:10px 14px;outline:none"><div style="display:flex;gap:10px;justify-content:flex-end"><button onclick="document.getElementById('gas-modal').style.display='none'" style="padding:9px 20px;background:#1E1E24;border:1px solid rgba(201,168,76,.2);border-radius:8px;color:#A89F8C;cursor:pointer">Cancelar</button><button onclick="var u=document.getElementById('gas-url-input').value.trim();if(!u){alert('URL inv\u00e1lida');return;}localStorage.setItem('dv_gas_url',u);document.getElementById('gas-modal').style.display='none';loadAll().then(function(){S.session?showApp():showLogin();});" style="padding:9px 20px;background:#C9A84C;border:none;border-radius:8px;color:#0A0A0B;font-weight:600;cursor:pointer">Guardar y Conectar</button></div></div></div>
+<div id="gas-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:10000;align-items:center;justify-content:center"><div style="background:#18181C;border:1px solid rgba(201,168,76,.4);border-radius:14px;padding:28px 32px;max-width:520px;width:90%;margin:auto"><div style="font-family:serif;font-size:22px;color:#F2C96A;margin-bottom:12px">Conectar Google Sheets</div><p style="color:#A89F8C;font-size:13px;margin-bottom:16px">Pega la URL del Web App de tu Apps Script.</p><input id="gas-url-input" type="text" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;margin-bottom:16px;background:#1E1E24;border:1px solid rgba(201,168,76,.2);border-radius:8px;color:#F0EDE4;font-size:12px;padding:10px 14px;outline:none"><div style="display:flex;gap:10px;justify-content:flex-end"><button onclick="document.getElementById('gas-modal').style.display='none'" style="padding:9px 20px;background:#1E1E24;border:1px solid rgba(201,168,76,.2);border-radius:8px;color:#A89F8C;cursor:pointer">Cancelar</button><button onclick="saveGasUrl()" data-old="('gas-url-input').value.trim();if(!u){alert('URL inv\u00e1lida');return;}localStorage.setItem('dv_gas_url',u);document.getElementById('gas-modal').style.display='none';loadAll().then(function(){S.session?showApp():showLogin();});" style="padding:9px 20px;background:#C9A84C;border:none;border-radius:8px;color:#0A0A0B;font-weight:600;cursor:pointer">Guardar y Conectar</button></div></div></div>
 </body></html>`;
   const blob=new Blob([html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${v.docId}.html`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);showToast('Descargando '+v.docId);
 }
@@ -1431,6 +1431,20 @@ function init(){
   if(S.session){showApp()}else{showLogin()}
 }
 init();
+
+function openGasConfig(){
+  var inp=document.getElementById('gas-url-input');
+  if(inp) inp.value=localStorage.getItem('dv_gas_url')||'';
+  var m=document.getElementById('gas-modal');
+  if(m) m.style.display='flex';
+}
+function saveGasUrl(){
+  var url=document.getElementById('gas-url-input').value.trim();
+  if(!url||!url.includes('script.google.com')){showToast('URL inválida');return;}
+  localStorage.setItem('dv_gas_url',url);
+  document.getElementById('gas-modal').style.display='none';
+  loadAll().then(function(){S.session?showApp():showLogin();});
+}
 </script>
 </body>
 </html>
