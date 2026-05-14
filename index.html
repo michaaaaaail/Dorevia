@@ -341,7 +341,18 @@ input,select,textarea,button{font-family:inherit}
     <!-- ═══ DASHBOARD ═══ -->
     <div class="page active" id="page-dashboard">
       <div id="dash-alerts"></div>
-      <div class="kpi-grid" id="kpi-grid"></div>
+      <div class="kpi-grid" 
+      <div class="kpi-card" id="kpi-inv-cost">
+        <div class="kpi-label">Valor en inventario</div>
+        <div class="kpi-value" id="dash-inv-cost">$0</div>
+        <div class="kpi-sub">Costo total del stock</div>
+      </div>
+      <div class="kpi-card" id="kpi-inv-profit">
+        <div class="kpi-label">Ganancia estimada</div>
+        <div class="kpi-value green" id="dash-inv-profit">$0</div>
+        <div class="kpi-sub">Si vendes todo al precio actual</div>
+      </div>
+    id="kpi-grid"></div>
       <div class="card">
         <div class="card-header">
           <div class="card-title">
@@ -942,6 +953,15 @@ function renderDash(){
   const rec=[...S.ventas].filter(v=>v.tipo==='venta').reverse().slice(0,6);
   const svgE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   document.getElementById('dash-recent').innerHTML=rec.length?rec.map(v=>`<tr><td style="font-family:var(--mono);font-size:10px;color:var(--tx2)">${v.docId}</td><td style="white-space:nowrap">${fmtS(v.fecha)}</td><td style="color:var(--tx0);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.cliente}</td><td style="font-family:var(--mono);color:var(--gold-light);font-weight:600;white-space:nowrap">${cop(v.total)}</td><td><span class="badge ${v.estado==='Pagado'?'badge-green':v.estado==='Pendiente'?'badge-red':'badge-amber'}">${v.estado}</span></td><td><button class="tbl-action" onclick="openDetail(${v.id})">${svgE}</button></td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx2);font-size:13px">Sin ventas registradas</td></tr>';
+
+  // Inventory value KPIs
+  var invCost = S.inv.reduce(function(sum,p){ return sum + (p.avgCost||0)*(p.stock||0); }, 0);
+  var invSaleVal = S.inv.reduce(function(sum,p){ return sum + (p.salePrice||0)*(p.stock||0); }, 0);
+  var invProfit = invSaleVal - invCost;
+  var elIC = document.getElementById('dash-inv-cost');
+  var elIP = document.getElementById('dash-inv-profit');
+  if(elIC) elIC.textContent = cop(invCost);
+  if(elIP) elIP.textContent = cop(invProfit);
 }
 
 function kpiDrill(t){goTo('historial');const sel=document.getElementById('hist-tipo');if(t==='gastos'){if(sel)sel.value='gastos'}else{if(sel)sel.value='ventas'}const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;fillMeses();const ms=document.getElementById('hist-mes');if(ms)ms.value=ym;renderHist()}
@@ -1041,7 +1061,22 @@ function renderInv(){
   }).join('');
 }
 function addStock(idx){const qty=parseInt(document.getElementById(`inv-aq-${idx}`)?.value)||0,cost=parseInt(document.getElementById(`inv-ac-${idx}`)?.value)||0,p=S.inv[idx];if(!p||qty<=0){showToast('Ingresa cantidad');return}if(cost<=0){showToast('Ingresa el costo');return}updateAvgCost(p,qty,cost);sv(KEYS.inv,S.inv);showToast(`+${qty} uds ${p.sku} · Costo prom: ${cop(p.avgCost)}`);renderInv();if(S.currentPage==='facturacion')renderProdGrid()}
-function saveInv(){S.inv.forEach((p,idx)=>{const s=parseInt(document.getElementById(`inv-s-${idx}`)?.value),m=parseInt(document.getElementById(`inv-m-${idx}`)?.value),c=parseInt(document.getElementById(`inv-c-${idx}`)?.value),v=parseInt(document.getElementById(`inv-v-${idx}`)?.value);if(!isNaN(s))p.stock=s;if(!isNaN(m))p.minStock=m;if(!isNaN(c))p.avgCost=c;if(!isNaN(v))p.salePrice=v});sv(KEYS.inv,S.inv);showToast('Inventario guardado');renderInv()}
+function saveInv(){
+  S.inv.forEach(function(p,idx){
+    var s=document.getElementById('inv-s-'+idx);
+    var m=document.getElementById('inv-m-'+idx);
+    var c=document.getElementById('inv-c-'+idx);
+    var v=document.getElementById('inv-v-'+idx);
+    if(s) p.stock=parseInt(s.value)||0;
+    if(m) p.minStock=parseInt(m.value)||0;
+    if(c) p.avgCost=parseInt(c.value)||0;
+    if(v) p.salePrice=parseInt(v.value)||0;
+  });
+  sv(KEYS.inv, S.inv);
+  renderInv();
+  renderDash();
+  showToast('Inventario guardado ✓');
+}
 function delProd(id){if(!confirm('¿Eliminar producto?'))return;S.inv=S.inv.filter(p=>p.id!==id);sv(KEYS.inv,S.inv);renderInv();showToast('Eliminado')}
 function addNewProd(){const sku=document.getElementById('np-sku')?.value.trim().toUpperCase(),name=document.getElementById('np-name')?.value.trim();if(!sku||!name){showToast('SKU y nombre requeridos');return}if(S.inv.find(p=>p.sku===sku)){showToast('SKU ya existe');return}S.inv.push({id:Date.now(),sku,name,category:document.getElementById('np-cat')?.value.trim()||'Otros',stock:parseInt(document.getElementById('np-stock')?.value)||0,minStock:3,avgCost:parseInt(document.getElementById('np-cost')?.value)||0,salePrice:parseInt(document.getElementById('np-sale')?.value)||0});sv(KEYS.inv,S.inv);['np-sku','np-name','np-cat','np-cost','np-sale','np-stock'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});showToast(`Producto ${sku} agregado`);renderInv()}
 
