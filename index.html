@@ -1416,8 +1416,8 @@ function exportInventario(){
 }
 
 /* INIT */
-function init(){
-  loadAll();
+async function init(){
+  await loadAll();
   const cj=document.getElementById('cj-fecha');if(cj)cj.value=today();
   if(S.session){showApp()}else{showLogin()}
 }
