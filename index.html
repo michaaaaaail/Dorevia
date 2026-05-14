@@ -463,7 +463,7 @@ input,select,textarea,button{font-family:inherit}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Guardar Factura
         </button>
-        <button class="btn btn-secondary btn-sm" onclick="clearFacForm()">
+        <button class="btn btn-secondary btn-sm" onclick="clearFac()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.71"/></svg>
         </button>
       </div>
@@ -514,7 +514,7 @@ input,select,textarea,button{font-family:inherit}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/></svg>
           Guardar Movimiento
         </button>
-        <button class="btn btn-secondary btn-sm" onclick="clearCajaForm()">
+        <button class="btn btn-secondary btn-sm" onclick="clearCaja()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.71"/></svg>
         </button>
       </div>
@@ -542,7 +542,7 @@ input,select,textarea,button{font-family:inherit}
     <div class="page" id="page-inventario">
       <div class="ph">
         <div><div class="ph-title">Inventario</div><div class="ph-sub">Stock · Precios · Costo promedio</div></div>
-        <button class="btn btn-primary btn-sm" onclick="saveInventario()">
+        <button class="btn btn-primary btn-sm" onclick="saveInv()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12"/></svg>
           Guardar
         </button>
@@ -592,7 +592,7 @@ input,select,textarea,button{font-family:inherit}
         </div></div>
         <div class="field"><label>Contraseña actual</label><input type="password" id="cp-old" placeholder="••••••"></div>
         <div class="field"><label>Nueva contraseña</label><input type="password" id="cp-new" placeholder="••••••"></div>
-        <button class="btn btn-secondary" style="margin-bottom:0" onclick="changeMyPassword()">Actualizar contraseña</button>
+        <button class="btn btn-secondary" style="margin-bottom:0" onclick="changeMyPw()">Actualizar contraseña</button>
       </div>
 
       <div class="card" id="new-user-card">
